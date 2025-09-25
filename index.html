@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta Tabela FIPE</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Consulta Tabela FIPE</h1>
+    <form id="fipeForm">
+      <div class="form-group">
+        <label for="marca">Marca:</label>
+        <select id="marca" required>
+          <option value="">Selecione uma marca</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="modelo">Modelo:</label>
+        <select id="modelo" required disabled>
+          <option value="">Selecione um modelo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="ano">Ano:</label>
+        <select id="ano" required disabled>
+          <option value="">Selecione um ano</option>
+        </select>
+      </div>
+      <button type="submit" id="consultarBtn" disabled>Consultar Preço</button>
+    </form>
+
+    <div class="loading" id="loading">
+      <p>Carregando informações...</p>
+    </div>
+
+    <div class="result" id="result">
+      <h2>Resultado da Consulta</h2>
+      <p><strong>Marca:</strong> <span id="resultMarca"></span></p>
+      <p><strong>Modelo:</strong> <span id="resultModelo"></span></p>
+      <p><strong>Ano:</strong> <span id="resultAno"></span></p>
+      <p><strong>Valor:</strong> <span id="resultValor"></span></p>
+      <p><strong>Código FIPE:</strong> <span id="resultCodigo"></span></p>
+      <p><strong>Combustível:</strong> <span id="resultCombustivel"></span></p>
+    </div>
+  </div>
+
+  <script>
+
+    const marcaSelect = document.getElementById('marca');
+    const modeloSelect = document.getElementById('modelo');
+    const anoSelect = document.getElementById('ano');
+    const consultarBtn = document.getElementById('consultarBtn');
+    const resultDiv = document.getElementById('result');
+    const loadingDiv = document.getElementById('loading');
+
+
+    window.onload = function () {
+      carregarMarcas();
+    };
+
+
+    async function carregarMarcas() {
+      try {
+        const response = await fetch('https://parallelum.com.br/fipe/api/v1/carros/marcas');
+        const marcas = await response.json();
+
+        marcas.forEach(marca => {
+          const option = document.createElement('option');
+          option.value = marca.codigo;
+          option.textContent = marca.nome;
+          marcaSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar marcas:', error);
+        alert('Erro ao carregar as marcas. Tente novamente mais tarde.');
+      }
+    }
+
+
+    marcaSelect.addEventListener('change', function () {
+      const marcaCodigo = this.value;
+
+      if (marcaCodigo) {
+        carregarModelos(marcaCodigo);
+        modeloSelect.disabled = false;
+        anoSelect.disabled = true;
+        consultarBtn.disabled = true;
+        modeloSelect.innerHTML = '<option value="">Carregando modelos...</option>';
+        anoSelect.innerHTML = '<option value="">Selecione um ano</option>';
+      } else {
+        modeloSelect.disabled = true;
+        anoSelect.disabled = true;
+        consultarBtn.disabled = true;
+        modeloSelect.innerHTML = '<option value="">Selecione um modelo</option>';
+        anoSelect.innerHTML = '<option value="">Selecione um ano</option>';
+      }
+    });
+
+
+    async function carregarModelos(marcaCodigo) {
+      try {
+        const response = await fetch(`https://parallelum.com.br/fipe/api/v1/carros/marcas/${marcaCodigo}/modelos`);
+        const data = await response.json();
+
+        modeloSelect.innerHTML = '<option value="">Selecione um modelo</option>';
+
+        data.modelos.forEach(modelo => {
+          const option = document.createElement('option');
+          option.value = modelo.codigo;
+          option.textContent = modelo.nome;
+          modeloSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar modelos:', error);
+        alert('Erro ao carregar os modelos. Tente novamente mais tarde.');
+      }
+    }
+
+
+    modeloSelect.addEventListener('change', function () {
+      const marcaCodigo = marcaSelect.value;
+      const modeloCodigo = this.value;
+
+      if (marcaCodigo && modeloCodigo) {
+        carregarAnos(marcaCodigo, modeloCodigo);
+        anoSelect.disabled = false;
+        consultarBtn.disabled = true;
+        anoSelect.innerHTML = '<option value="">Carregando anos...</option>';
+      } else {
+        anoSelect.disabled = true;
+        consultarBtn.disabled = true;
+        anoSelect.innerHTML = '<option value="">Selecione um ano</option>';
+      }
+    });
+
+
+    async function carregarAnos(marcaCodigo, modeloCodigo) {
+      try {
+        const response = await fetch(`https://parallelum.com.br/fipe/api/v1/carros/marcas/${marcaCodigo}/modelos/${modeloCodigo}/anos`);
+        const anos = await response.json();
+
+        anoSelect.innerHTML = '<option value="">Selecione um ano</option>';
+
+        anos.forEach(ano => {
+          const option = document.createElement('option');
+          option.value = ano.codigo;
+          option.textContent = ano.nome;
+          anoSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar anos:', error);
+        alert('Erro ao carregar os anos. Tente novamente mais tarde.');
+      }
+    }
+
+
+    anoSelect.addEventListener('change', function () {
+      consultarBtn.disabled = !this.value;
+    });
+
+
+    document.getElementById('fipeForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const marcaCodigo = marcaSelect.value;
+      const modeloCodigo = modeloSelect.value;
+      const anoCodigo = anoSelect.value;
+
+      if (!marcaCodigo || !modeloCodigo || !anoCodigo) {
+        alert('Por favor, selecione marca, modelo e ano.');
+        return;
+      }
+
+      loadingDiv.style.display = 'block';
+      resultDiv.style.display = 'none';
+
+      try {
+        const response = await fetch(`https://parallelum.com.br/fipe/api/v1/carros/marcas/${marcaCodigo}/modelos/${modeloCodigo}/anos/${anoCodigo}`);
+        const data = await response.json();
+
+
+        document.getElementById('resultMarca').textContent = data.Marca;
+        document.getElementById('resultModelo').textContent = data.Modelo;
+        document.getElementById('resultAno').textContent = data.AnoModelo;
+        document.getElementById('resultValor').textContent = data.Valor;
+        document.getElementById('resultCodigo').textContent = data.CodigoFipe;
+        document.getElementById('resultCombustivel').textContent = data.Combustivel;
+
+        resultDiv.style.display = 'block';
+      } catch (error) {
+        console.error('Erro ao consultar FIPE:', error);
+        alert('Erro ao consultar a tabela FIPE. Tente novamente mais tarde.');
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+
+</html>
